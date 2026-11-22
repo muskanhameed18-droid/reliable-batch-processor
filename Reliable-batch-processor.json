@@ -1,0 +1,849 @@
+{
+  "name": "Reliable-batch-processor",
+  "nodes": [
+    {
+      "parameters": {
+        "compare": "selectedFields",
+        "fieldsToCompare": "record_id",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        1152,
+        976
+      ],
+      "id": "c365388f-9112-4d40-b518-868be28a511d",
+      "name": "Remove Duplicates"
+    },
+    {
+      "parameters": {
+        "content": "### How it works\nProcesses a batch of records safely, without duplicates, even when an API call fails. It validates records, removes duplicates, and skips any record already marked \"done\" in Google Sheets. Each record is marked \"pending\" before the API call. On success it is logged and marked \"done\". On failure it stays \"pending\", the error is logged, and an alert email is sent. A final summary counts every result.\n\n### Setup\n1. Create a Google Sheet with tabs: Success log, Error log, Mark processed (columns: record_id, status, updated_at), Invalid record.\n2. In all 6 Google Sheets nodes, replace YOUR_GOOGLE_SHEET_ID and YOUR_SHEET_TAB_ID.\n3. Connect your Google Sheets and Gmail credentials.\n4. In Failure Alert, replace your-email@example.com.\n5. In Call API (with Retry), replace the demo URL with your own API.\n\n### Customization\nEdit the test records in Prepare Input Data. Add an idempotency key if your API supports one.\n\nLimitations: a retry after a timeout may create a duplicate if the API has no idempotency key. Workflow crashes are not covered.",
+        "height": 752,
+        "width": 768,
+        "color": "#75590A"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "406ad6c6-390a-4b04-8171-e855cf2404b4",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        256,
+        1072
+      ],
+      "id": "b683b369-94b2-444e-b995-1d2ecdbb3677",
+      "name": "Start"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "77337e7a-f714-4d86-9416-210798c0c6b1",
+              "name": "record_id",
+              "value": "101",
+              "type": "string"
+            },
+            {
+              "id": "3b47a90f-0d77-4bb5-b24b-ab1e353ee7a8",
+              "name": "customer_name",
+              "value": "customer1",
+              "type": "string"
+            },
+            {
+              "id": "1147a55d-5260-45ec-abb0-adc2a8cc9da5",
+              "name": "Email",
+              "value": "customer1@example.com",
+              "type": "string"
+            },
+            {
+              "id": "46a49244-7d23-4b01-a875-4df902be2967",
+              "name": "status",
+              "value": "pending",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        480,
+        1072
+      ],
+      "id": "d34dd370-7ab8-40ce-99f0-c940c1830d7c",
+      "name": "Prepare Input Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      record_id: \"1\" ,\n      customer_name: \"customer 1\",\n      email: \"customer1@example.com\",\n      status: \"pending\"\n    }\n  },\n  {\n    json: {\n      record_id: \"2\",\n      customer_name: \"customer 2\",\n      email: \"customer2@example.com\",\n      status: \"pending\"\n    }\n  },\n  {\n    json: {\n      record_id: \"3\",\n      customer_name: \"customer 3\",\n      email: \"\",\n      status: \"pending\"\n    }\n  },\n  {\n    json: {\n      record_id: \"4\",\n      customer_name: \"customer 4\",\n      email: \"customer4@example.com\",\n      status: \"pending\"\n    }\n  },\n  {\n    json: {\n      record_id: \"1\",\n      customer_name: \"customer duplicate\",\n      email: \"customer1@example.com\" ,\n      status: \"pending\" ,\n    }\n  },   \n  {\n    json: {\n      record_id: \"5\",\n      customer_name: \"customer 5\",\n      email: \"customer5@example.com\" ,\n      status: \"pending\" ,\n    }\n  },\n  {\n    json: {\n      record_id: \"6\",\n      customer_name: \"customer 6\",\n      email: \"customer6@example.com\" ,\n      status: \"pending\" ,\n    }\n   },\n {\n   json: {\n      record_id: \"7\",\n      customer_name: \"customer 7\",\n      email: \"customer7@example.com\" ,\n      status: \"pending\" ,\n    }\n   },\n  {\n   json: {\n      record_id: \"8\",\n      customer_name: \"customer 8\",\n      email: \"customer8@example.com\" ,\n      status: \"pending\" ,\n   }\n  },\n  {\n   json: {\n      record_id: \"9\",\n      customer_name: \"customer 9\",\n      email: \"customer9@example.com\" ,\n      status: \"pending\" , \n   }\n  },\n  {\n   json: {\n      record_id: \"10\",\n      customer_name: \"customer 10\",\n      email: \"customer10@example.com\" ,\n      status: \"pending\" , \n   }\n  },\n  ];\n   "
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        1072
+      ],
+      "id": "aa835fb0-dee0-4c0e-90a1-1eff0c48ba6c",
+      "name": "Validate Records"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6d82fdda-2b9c-41e1-9556-56259e271318",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        928,
+        1072
+      ],
+      "id": "461f746c-0643-4750-aab2-292b9f48f102",
+      "name": "Is Record Valid"
+    },
+    {
+      "parameters": {
+        "url": "=https://jsonplaceholder.typicode.com/users/{{ $json.record_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2048,
+        976
+      ],
+      "id": "4d1d721e-c5af-44a1-9ad4-26fa3d359ff3",
+      "name": "Call API (with Retry)",
+      "retryOnFail": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "YOUR_SHEET_TAB_ID",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2496,
+        912
+      ],
+      "id": "91558f35-8ea5-4bd1-92ca-f770a3aa3df2",
+      "name": "Log Success",
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "fgenuKaieF7vWD4i",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ad4417e1-09ac-4080-a7b5-e30c00c4443f",
+              "name": "record_id",
+              "value": "={{ $json.record_id }}",
+              "type": "string"
+            },
+            {
+              "id": "f91efea1-0731-423c-8c68-4874c494aff8",
+              "name": "customer_name",
+              "value": "={{ $('Skip Already Processed').item.json.customer_name }}",
+              "type": "string"
+            },
+            {
+              "id": "5e6ba98b-003d-4870-afea-5f3e0c5e0d57",
+              "name": "error",
+              "value": "={{ $json.error }}",
+              "type": "object"
+            },
+            {
+              "id": "d7dd14d0-2838-4354-b94e-2d88066e42e2",
+              "name": "status",
+              "value": "failed",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        2272,
+        1232
+      ],
+      "id": "024c9147-b610-4ac8-86b8-66a8e71f36c3",
+      "name": "Format Error Detials"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "YOUR_SHEET_TAB_ID",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2480,
+        1200
+      ],
+      "id": "2e43c463-28cc-4ea8-a2e9-823743063844",
+      "name": "Log API Error",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "fgenuKaieF7vWD4i",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f9388af3-c62a-4192-862d-856f3211df3d",
+              "name": "record_id",
+              "value": "={{ $json.record_id }}",
+              "type": "string"
+            },
+            {
+              "id": "f642da5c-ca02-43f5-b029-ff167ebc9461",
+              "name": "customer_name",
+              "value": "={{ $json.customer_name }}",
+              "type": "string"
+            },
+            {
+              "id": "55acb04a-edd4-49ec-bcbc-d995f4fb12c4",
+              "name": "error",
+              "value": "missing email",
+              "type": "string"
+            },
+            {
+              "id": "cfc2fc69-eaee-476d-8912-e04ddaf9d1c8",
+              "name": "status",
+              "value": "failed_validiation",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1152,
+        1216
+      ],
+      "id": "0fd86111-ea66-43e4-be6d-6c8550b10541",
+      "name": "Mark Invalid Record"
+    },
+    {
+      "parameters": {
+        "jsCode": "function count(name) {\n  try { return $(name).all().length; } catch (e) { return 0; }\n}\n\nconst total = count('Validate Records');\nconst valid = count('Is Record Valid');\nconst invalid = total - valid;\nconst afterDedup = count('Remove Duplicates');\nconst duplicates = valid - afterDedup;\nconst sentToApi = count('Skip Already Processed');\nconst alreadyProcessed = afterDedup - sentToApi;\nconst apiSuccess = count('Log Success');\nconst apiErrors = count('Log API Error');\n\nreturn [{\n  json: {\n    total_records: total,\n    invalid_records: invalid,\n    duplicates_removed: duplicates,\n    already_processed: alreadyProcessed,\n    sent_to_api: sentToApi,\n    api_success: apiSuccess,\n    api_errors: apiErrors,\n    status: apiErrors > 0 ? 'Completed with errors' : 'Completed successfully'\n  }\n}];\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2768,
+        1200
+      ],
+      "id": "5888d05d-53c5-44f2-bfb3-6fcfd9be96ba",
+      "name": "Final Summary"
+    },
+    {
+      "parameters": {
+        "jsCode": "const done = new Set(\n  $('Get Processed IDs').all()\n    .filter(i => String(i.json.status).toLowerCase() === 'done')\n    .map(i => String(i.json.record_id))\n    .filter(x => x && x !== 'undefined')\n);\nconst records = $('Remove Duplicates').all();\nreturn records.filter(r => !done.has(String(r.json.record_id)));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        976
+      ],
+      "id": "73737498-01db-48a7-a54e-c8b4d8c5d725",
+      "name": "Skip Already Processed"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "YOUR_SHEET_TAB_ID",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1376,
+        976
+      ],
+      "id": "a32b2b5c-f4d7-44f3-bfef-d51ff58d9d72",
+      "name": "Get Processed IDs",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "fgenuKaieF7vWD4i",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "YOUR_SHEET_TAB_ID",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2880,
+        896
+      ],
+      "id": "78841b56-16a8-459c-adbf-7425f1c2160b",
+      "name": "Mark Processed",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "fgenuKaieF7vWD4i",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "your-email@example.com",
+        "subject": "Batch run finished with error",
+        "message": "=Total: {{ $json.total_records }} Invalid: {{ $json.invalid_records }} API errors: {{ $json.api_errors }} Status: {{ $json.status }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        3136,
+        1168
+      ],
+      "id": "922b59d2-da17-4982-a41c-babcf105c573",
+      "name": "Failure Alert",
+      "webhookId": "78811f0a-5892-4cee-85f0-f83b04e498f4",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "AOGHBf87VdZePX0t",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "YOUR_SHEET_TAB_ID",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1824,
+        976
+      ],
+      "id": "5f453f90-d59f-4582-a004-2d5556c6ef49",
+      "name": "Mark Pending",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "fgenuKaieF7vWD4i",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "YOUR_SHEET_TAB_ID",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1360,
+        1216
+      ],
+      "id": "1c229446-f9db-4f6b-9d11-538481a4795f",
+      "name": "Log Invalid Record",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "fgenuKaieF7vWD4i",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "59be4d45-2dee-4f17-99d5-f690c781bbdd",
+              "leftValue": "={{ $json.api_errors  }}",
+              "rightValue": "=0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2944,
+        1184
+      ],
+      "id": "5ec07ef2-a04e-4772-9e34-a530f726d1b3",
+      "name": "Any errors?"
+    },
+    {
+      "parameters": {
+        "content": "## Prepare and validate records\nCreates the test records, then checks each one for required fields. Valid records continue. Invalid records go to the lower branch.",
+        "height": 272,
+        "width": 768,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        256,
+        944
+      ],
+      "typeVersion": 1,
+      "id": "6e3ac1e3-782b-4e55-8c5a-3d61a1feda76",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Remove duplicates and skip done records\nRemoves duplicate IDs, then reads the sheet and skips records already marked \"done\".",
+        "height": 224,
+        "width": 688,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1072,
+        864
+      ],
+      "typeVersion": 1,
+      "id": "884c10fb-b6e3-4604-804a-0d86152b399a",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Mark pending and call the API\nMarks each record \"pending\" first, then calls the API with automatic retries. Success and error results take separate paths.",
+        "height": 224,
+        "width": 512,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1792,
+        864
+      ],
+      "typeVersion": 1,
+      "id": "28f12596-d611-4572-9ada-96cfae572bc6",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "## Success path\nLogs each successful call, then changes the record's status from \"pending\" to \"done\".\n",
+        "height": 272,
+        "width": 624
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2480,
+        768
+      ],
+      "typeVersion": 1,
+      "id": "b29bc23d-5d84-424d-bd8e-ce9551d067c0",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "## Error path\nIf the API call fails, formats the error details and logs them. The record stays \"pending\" so it can be retried later.",
+        "height": 208,
+        "width": 592,
+        "color": "#2B2B2B"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2080,
+        1120
+      ],
+      "typeVersion": 1,
+      "id": "b15f4540-efd9-405a-b4d7-78eff69f83c4",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "\n## Invalid records path\nRecords that fail validation are marked invalid and logged. They never reach the API.\n",
+        "height": 208,
+        "width": 448,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1120,
+        1104
+      ],
+      "typeVersion": 1,
+      "id": "9e77ea54-b2a7-4df0-8da5-e72eb1621f24",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "## Summary and alert\nCounts every result of the run. If any API call failed, sends an alert email.",
+        "height": 224,
+        "width": 592,
+        "color": "#35750A"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2720,
+        1104
+      ],
+      "typeVersion": 1,
+      "id": "591746e2-1a25-4630-8fc3-b06cba29de1c",
+      "name": "Sticky Note7"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Remove Duplicates": {
+      "main": [
+        [
+          {
+            "node": "Get Processed IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Prepare Input Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Input Data": {
+      "main": [
+        [
+          {
+            "node": "Validate Records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Records": {
+      "main": [
+        [
+          {
+            "node": "Is Record Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Record Valid": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Invalid Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call API (with Retry)": {
+      "main": [
+        [
+          {
+            "node": "Log Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error Detials",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error Detials": {
+      "main": [
+        [
+          {
+            "node": "Log API Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Success": {
+      "main": [
+        [
+          {
+            "node": "Final Summary",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mark Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log API Error": {
+      "main": [
+        [
+          {
+            "node": "Final Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Already Processed": {
+      "main": [
+        [
+          {
+            "node": "Mark Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Processed IDs": {
+      "main": [
+        [
+          {
+            "node": "Skip Already Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Invalid Record": {
+      "main": [
+        [
+          {
+            "node": "Log Invalid Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Summary": {
+      "main": [
+        [
+          {
+            "node": "Any errors?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Pending": {
+      "main": [
+        [
+          {
+            "node": "Call API (with Retry)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any errors?": {
+      "main": [
+        [
+          {
+            "node": "Failure Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "74075ed9-8e0f-4efd-ab10-4dec8369b272",
+  "meta": {
+    "instanceId": "28cc4feef8bc0d2919e2e596352571203d50f011bc096c20636402f3970e5622"
+  },
+  "nodeGroups": [],
+  "id": "7h1c3xFRJWxtY6xk",
+  "tags": []
+}
